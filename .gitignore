@@ -1,0 +1,14 @@
+# Python önbellek dosyaları
+__pycache__/
+*.py[cod]
+
+# Sanal Ortam
+venv/
+env/
+.venv/
+
+# İşlenmiş Veritabanı Dosyası (Sistemi test edenler kendileri oluşturmalı)
+veritabani.sqlite
+
+# Ortam Değişkenleri
+.env
