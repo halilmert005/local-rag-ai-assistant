@@ -1,10 +1,12 @@
+import os
+import shutil
 import gradio as gr
 import ingestion
 from retrieval import get_relevant_chunks
 from main import send_message
 from foundry_local_sdk import Configuration, FoundryLocalManager
 
-# --- YKAPAY ZEKA MODELLERİ (GLOBAL DEĞİŞKENLER) ---
+# --- YAPAY ZEKA MODELLERİ (GLOBAL DEĞİŞKENLER) ---
 chat_client = None
 embed_client = None
 
@@ -35,14 +37,27 @@ def initialize_models():
 def process_document(file):
     if file is None:
         return "Lütfen dosyayı yükleyin."
-    file_path = file.name
-    result_message = ingestion.process_file(file_path)
+
+    # 1. Yüklenen dosyayı kalıcı olarak saklayacağımız klasörü belirliyoruz
+    upload_dir = os.path.join("data", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # 2. Dosyanın orijinal ismini alıp yeni yolu oluşturuyoruz
+    original_filename = os.path.basename(file.name)
+    save_path = os.path.join(upload_dir, original_filename)
+
+    # 3. Dosyayı Gradio'nun geçici klasöründen bizim uploads klasörümüze kopyalıyoruz
+    shutil.copy(file.name, save_path)
+
+    # 4. Ingestion betiğine yeni kalıcı dosya yolunu gönderiyoruz
+    result_message = ingestion.process_file(save_path)
     return result_message
 
 
 def query_rag(user_input, chat_history):
-    # 1. SQLite'ta benzerlik araması yap (chunking.db üzerinden)
-    relevant_chunks = get_relevant_chunks(user_input, embed_client, db_path="chunking.db", top_k=3)
+    # 1. SQLite'ta benzerlik araması yap (Veritabanı yolunu data/chunking.db olarak güncelledik)
+    db_path = os.path.join("data", "chunking.db")
+    relevant_chunks = get_relevant_chunks(user_input, embed_client, db_path=db_path, top_k=3)
 
     # Parçaları birleştir
     context_text = "\n\n".join(relevant_chunks)
@@ -63,7 +78,7 @@ def query_rag(user_input, chat_history):
 # --- BÖLÜM 2: ARAYÜZ İSKELETİ ---
 
 with gr.Blocks() as demo:
-    gr.Markdown("# 🧠 Local RAG AI Assistant")
+    gr.Markdown("# Local RAG AI Assistant")
 
     with gr.Row():
         with gr.Column(scale=1):

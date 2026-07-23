@@ -12,3 +12,11 @@ veritabani.sqlite
 
 # Ortam Değişkenleri
 .env
+
+# RAG Asistanı - Kullanıcı tarafından yüklenen özel belgeler
+data/uploads/*
+!data/uploads/.gitkeep
+
+# SQLite Veritabanları
+*.db
+*.sqlite

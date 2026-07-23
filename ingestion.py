@@ -3,10 +3,16 @@ import os
 import sqlite3
 from foundry_local_sdk import Configuration, FoundryLocalManager
 
+# Veritabanının oluşturulacağı yeni yol: data/chunking.db
+DB_PATH = os.path.join("data", "chunking.db")
+
 
 def setup_database():
     """Initializes the SQLite database and creates the necessary documents table."""
-    conn = sqlite3.connect("chunking.db")
+    # Data klasörü yoksa oluştur (güvenlik için)
+    os.makedirs("data", exist_ok=True)
+
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     # Create table for storing text chunks and their embeddings
@@ -50,7 +56,7 @@ def process_file(file_path):
     file_extension = os.path.splitext(file_path)[1].lower()
     content = ""
 
-    # ÇÖZÜM 2: Tablo destekli PDF okuma mantığı
+    # Tablo destekli PDF okuma mantığı
     if file_extension == '.pdf':
         try:
             import pdfplumber
@@ -77,7 +83,7 @@ def process_file(file_path):
         except ImportError:
             return "Sistem Hatası: PDF yükleyebilmek için pdfplumber gerekli. Terminale 'pip install pdfplumber' yazarak kurun."
     else:
-        # Metin (.txt) dosyaları için okuma mantığı
+        # Metin (.txt, .md vb.) dosyaları için okuma mantığı
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -96,7 +102,7 @@ def process_file(file_path):
     chunks = get_chunks(content)
     print(f"\nFile read. Processing {len(chunks)} chunks.")
 
-    # 4. Generate embeddings and save to database (Sizin orjinal ve çalışan kodunuz)
+    # 4. Generate embeddings and save to database
     for idx, chunk in enumerate(chunks):
         chunk = chunk.strip()
         if not chunk:
@@ -128,8 +134,35 @@ def process_file(file_path):
     return f"Success: '{file_name}' vectorized and saved to chunking.db"
 
 
-# Bu kısmı kaldırmıyoruz, eğer bu dosyayı doğrudan terminalden çalıştırırsan
-# test edebilmen için ufak bir kontrol bırakıyoruz.
 if __name__ == "__main__":
-    # Test amaçlı
-    print("Please run this via ui.py for the interface.")
+    print("Toplu vektörizasyon işlemi başlatılıyor...")
+
+    # Hedef klasörlerimizi belirliyoruz
+    hedef_klasorler = [
+        os.path.join("data", "sample_docs"),
+        os.path.join("data", "uploads")
+    ]
+
+    islenen_dosya_sayisi = 0
+
+    for klasor in hedef_klasorler:
+        # Eğer klasör yoksa oluştur (Örn: projeyi yeni klonladıysan uploads olmayabilir)
+        if not os.path.exists(klasor):
+            os.makedirs(klasor, exist_ok=True)
+            print(f"Bilgi: '{klasor}' klasörü oluşturuldu.")
+            continue  # İçi boş olduğu için diğer klasöre geç
+
+        # Klasördeki dosyaları tara
+        for dosya_adi in os.listdir(klasor):
+            dosya_yolu = os.path.join(klasor, dosya_adi)
+
+            # Sadece dosya olanları ve ilgili uzantıları işle
+            if os.path.isfile(dosya_yolu) and dosya_yolu.lower().endswith(('.pdf', '.txt', '.md')):
+                sonuc = process_file(dosya_yolu)
+                print(sonuc)
+                islenen_dosya_sayisi += 1
+
+    if islenen_dosya_sayisi == 0:
+        print("\nİşlem bitti: Belirtilen klasörlerde işlenecek uygun belge bulunamadı.")
+    else:
+        print(f"\nİşlem bitti: Toplam {islenen_dosya_sayisi} belge veritabanına eklendi.")

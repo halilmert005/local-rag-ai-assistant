@@ -1,4 +1,5 @@
 import sys
+import os
 from foundry_local_sdk import Configuration, FoundryLocalManager
 
 # Import our custom retrieval logic
@@ -70,7 +71,9 @@ def main():
         print("Veri tabanında aranıyor ve cevap üretiliyor.\n")
 
         # Retrieve relevant context from SQLite using embedding search
-        relevant_chunks = get_relevant_chunks(user_query, embed_client, top_k=3)
+        # DÜZELTME: Veritabanı yolunu yeni klasör yapısına uyumlu hale getirdik
+        db_path = os.path.join("data", "chunking.db")
+        relevant_chunks = get_relevant_chunks(user_query, embed_client, db_path=db_path, top_k=3)
 
         # Combine retrieved chunks into a single text block
         context_text = "\n\n".join(relevant_chunks)
