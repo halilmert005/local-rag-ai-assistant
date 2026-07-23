@@ -16,11 +16,22 @@ def cosine_similarity(vec1, vec2):
     return dot_product / (norm_a * norm_b)
 
 
-def get_relevant_chunks(query, embed_client, db_path="veritabani.sqlite", top_k=3):
+def get_relevant_chunks(query, embed_client=None, db_path="chunking.db", top_k=3):
     """
     Takes a user query, generates its embedding, and returns the top_k
     most similar text chunks from the SQLite database.
     """
+    # 1. ADIM: Vektör modelini bul ve işleme başlamadan hemen önce yükle
+    try:
+        manager = FoundryLocalManager.instance
+        embed_model = manager.catalog.get_model("qwen3-embedding-0.6b")
+        embed_model.load()  # ÇÖZÜM: Arka planda çökmüş olsa bile modeli zorla belleğe alır
+        embed_client = embed_model.get_embedding_client()
+    except Exception as e:
+        print(f"Hata: Model yüklenirken bir sorun oluştu - {e}")
+        return []
+
+    # 2. ADIM: Soruyu vektörleştir
     try:
         response = embed_client.generate_embeddings([str(query)])
         query_vector = response.data[0].embedding
@@ -28,6 +39,7 @@ def get_relevant_chunks(query, embed_client, db_path="veritabani.sqlite", top_k=
         print(f"Hata: Soru vektörleştirilemedi - {e}")
         return []
 
+    # 3. ADIM: Veritabanından belgeleri çek
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -40,6 +52,7 @@ def get_relevant_chunks(query, embed_client, db_path="veritabani.sqlite", top_k=
         print(f"Hata: Veritabanına ulaşılamadı - {e}")
         return []
 
+    # 4. ADIM: Kosinüs benzerliğini hesapla
     similarities = []
     for row in rows:
         chunk_text = row[0]
@@ -48,8 +61,15 @@ def get_relevant_chunks(query, embed_client, db_path="veritabani.sqlite", top_k=
         score = cosine_similarity(query_vector, chunk_vector)
         similarities.append((score, chunk_text))
 
+    # 5. ADIM: En yüksek skorluları sırala ve seç
     similarities.sort(key=lambda x: x[0], reverse=True)
     top_results = [item[1] for item in similarities[:top_k]]
+
+    # 6. ADIM: İşlem bitince RAM'de yer açmak için vektör modelini bellekten çıkar
+    try:
+        embed_model.unload()
+    except Exception as e:
+        pass  # Kapatırken oluşacak ufak hataları görmezden gel
 
     return top_results
 

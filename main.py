@@ -6,16 +6,19 @@ from retrieval import get_relevant_chunks
 
 
 def send_message(client, user_message, context=""):
-    """
-    Core of the RAG system: Directs the model with strict rules and context.
-    """
-    # SADECE pozitif ve çok kısa bir görev tanımı yapıyoruz.
-    system_rules = f"""Sen bir bilgi çıkarma asistanısın.
-GÖREV: Kullanıcının sorusunu sadece verilen bağlam metnini kullanarak, kısa ve net cümlelerle yanıtla.
-Eğer bilgi bağlamda yoksa, sadece "Bu bilgiye sahip değilim." de.
+    system_rules = f"""Sen bir RAG (Retrieval-Augmented Generation) asistanısın.
+Görevlerini sadece sana verilen <baglam> etiketleri içindeki metinlere dayanarak yerine getirmelisin.
 
-BAĞLAM:
+<kurallar>
+- <baglam> içinde sana birden fazla bilgi verilmiş olabilir. SADECE kullanıcının sorusuyla doğrudan ilgili olan bilgiyi seç.
+- Soruyu cevaplamak için gereksiz olan diğer bilgileri (örneğin sorulmayan diğer faiz türlerini) kesinlikle cevaba ekleme, filtrele.
+- Akıcı, kurallı ve dilbilgisi hatası olmayan, doğal bir Türkçe kullan ("Política" gibi yabancı veya uydurma kelimeler kullanma).
+- Eğer sorunun cevabı <baglam> içinde yoksa, sadece "Bu bilgiye sahip değilim." yaz.
+</kurallar>
+
+<baglam>
 {context}
+</baglam>
 """
 
     messages = [
