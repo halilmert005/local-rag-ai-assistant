@@ -1,4 +1,5 @@
 import sys
+import time
 import os
 from foundry_local_sdk import Configuration, FoundryLocalManager
 
@@ -27,7 +28,9 @@ Görevlerini sadece sana verilen <baglam> etiketleri içindeki metinlere dayanar
         {"role": "user", "content": user_message}
     ]
 
+    t0=time.time()
     response = client.complete_chat(messages)
+    print(f"LLM cevap süresi:{time.time()-t0:.2f}s")
     return response.choices[0].message.content
 
 
@@ -73,7 +76,7 @@ def main():
         # Retrieve relevant context from SQLite using embedding search
         # DÜZELTME: Veritabanı yolunu yeni klasör yapısına uyumlu hale getirdik
         db_path = os.path.join("data", "chunking.db")
-        relevant_chunks = get_relevant_chunks(user_query, embed_client, db_path=db_path, top_k=3)
+        relevant_chunks = get_relevant_chunks(user_query, embed_client, db_path=db_path, top_k=2)
 
         # Combine retrieved chunks into a single text block
         context_text = "\n\n".join(relevant_chunks)

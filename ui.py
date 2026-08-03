@@ -12,7 +12,7 @@ embed_client = None
 
 
 def initialize_models():
-    """Arayüz başlatılırken yapay zeka modellerini RAM'e yükler."""
+    """Arayüz başlatılırken yapay zeka modellerini VRAM'e (GPU) yükler."""
     global chat_client, embed_client
     print("Modeller yükleniyor, lütfen bekleyin.")
 
@@ -20,16 +20,44 @@ def initialize_models():
     FoundryLocalManager.initialize(config)
     manager = FoundryLocalManager.instance
 
-    # Sohbet modeli
+    result = manager.download_and_register_eps()
+    print(f"EP kayıt sonucu: {result.success}, {result.status}")
+
+    # 1. SOHBET MODELİ (CHAT)
+    print("\nSohbet modeli hazırlanıyor...")
     chat_model = manager.catalog.get_model("qwen2.5-1.5b")
+
+    # İsminin içinde 'cuda' geçen GPU varyantını bul
+    chat_cuda_variant = next((v for v in chat_model.variants if "cuda" in v.id.lower()), None)
+    if chat_cuda_variant:
+        print(f"Sohbet modeli için GPU varyantı seçildi: '{chat_cuda_variant.id}'")
+        chat_model.select_variant(chat_cuda_variant)
+    else:
+        print("Uyarı: Sohbet modeli için CUDA varyantı bulunamadı, CPU kullanılacak.")
+
+    chat_model.download(lambda p: print(f"\rİndiriliyor (Sohbet): %{p:.0f}", end=""))
+    print("\nSohbet modeli VRAM'e yükleniyor...")
     chat_model.load()
     chat_client = chat_model.get_chat_client()
 
-    # Vektör/Arama modeli
+    # 2. GÖMME MODELİ (EMBEDDING)
+    print("\nGömme motoru hazırlanıyor...")
     embed_model = manager.catalog.get_model("qwen3-embedding-0.6b")
+
+    # İsminin içinde 'cuda' geçen GPU varyantını bul
+    embed_cuda_variant = next((v for v in embed_model.variants if "cuda" in v.id.lower()), None)
+    if embed_cuda_variant:
+        print(f"Gömme modeli için GPU varyantı seçildi: '{embed_cuda_variant.id}'")
+        embed_model.select_variant(embed_cuda_variant)
+    else:
+        print("Uyarı: Gömme modeli için CUDA varyantı bulunamadı, CPU kullanılacak.")
+
+    embed_model.download(lambda p: print(f"\rİndiriliyor (Gömme): %{p:.0f}", end=""))
+    print("\nGömme modeli VRAM'e yükleniyor...")
     embed_model.load()
     embed_client = embed_model.get_embedding_client()
-    print("Modeller hazır! Arayüzü kullanabilirsiniz.")
+
+    print("\nTüm modeller GPU üzerinde hazır! Arayüzü kullanabilirsiniz.")
 
 
 # --- BÖLÜM 1: ARKA PLAN FONKSİYONLARI ---
@@ -57,7 +85,7 @@ def process_document(file):
 def query_rag(user_input, chat_history):
     # 1. SQLite'ta benzerlik araması yap (Veritabanı yolunu data/chunking.db olarak güncelledik)
     db_path = os.path.join("data", "chunking.db")
-    relevant_chunks = get_relevant_chunks(user_input, embed_client, db_path=db_path, top_k=3)
+    relevant_chunks = get_relevant_chunks(user_input, embed_client, db_path=db_path, top_k=2)
 
     # Parçaları birleştir
     context_text = "\n\n".join(relevant_chunks)
