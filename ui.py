@@ -83,6 +83,9 @@ def process_document(file):
 
 
 def query_rag(user_input, chat_history):
+    if not user_input or not user_input.strip():
+        return "", chat_history
+    
     # 1. SQLite'ta benzerlik araması yap (Veritabanı yolunu data/chunking.db olarak güncelledik)
     db_path = os.path.join("data", "chunking.db")
     relevant_chunks = get_relevant_chunks(user_input, embed_client, db_path=db_path, top_k=2)
